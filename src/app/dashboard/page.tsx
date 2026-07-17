@@ -25,7 +25,11 @@ import {
   Smartphone,
   ChevronRight,
 } from "lucide-react";
-import { mockApi, KOMODITAS_LIST, FASE_TANAM_LIST } from "@/lib/api/mockApi";
+import * as authApi from "@/lib/api/authApi";
+import * as landApi from "@/lib/api/landApi";
+import { getWeatherByCoords } from "@/lib/api/weatherApi";
+import { getPriceTrendByCommodity } from "@/lib/api/priceApi";
+import { COMMODITY_LIST, GROWTH_PHASE_LIST } from "@/lib/api/metadataApi";
 import { LahanProfile, Komoditas, FaseTanam, UserProfile } from "@/types";
 
 // Load LahanMap secara dinamis (ssr: false) untuk mencegah error Leaflet pada Server-Side Rendering
@@ -54,10 +58,10 @@ export default function DashboardPage() {
     if (!scrollRef.current) return;
     const { scrollLeft, clientWidth } = scrollRef.current;
     if (clientWidth === 0) return;
-    
+
     // Karena kartu berukuran lebar penuh (w-full), pembagi adalah clientWidth
     const index = Math.round(scrollLeft / clientWidth);
-    
+
     // Hanya update state jika indeks benar-benar bergeser/berubah
     if (index !== activeDot && index >= 0 && index < lahanList.length) {
       setActiveDot(index);
@@ -83,10 +87,10 @@ export default function DashboardPage() {
   // Muat status user dan lahan saat inisialisasi
   const loadData = () => {
     setIsLoading(true);
-    const currentUser = mockApi.getCurrentUser();
+    const currentUser = authApi.getCurrentUser();
     if (currentUser) {
       setUser(currentUser);
-      const list = mockApi.getLahanList();
+      const list = landApi.getLandList();
       setLahanList(list);
       setActiveLahanIndex((prev) => Math.min(prev, list.length - 1 >= 0 ? list.length - 1 : 0));
 
@@ -152,7 +156,7 @@ export default function DashboardPage() {
       // Simulasikan delay network
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      mockApi.createLahan({
+      landApi.createLand({
         namaLahan,
         luasLahan: parseFloat(luasLahan),
         komoditas,
@@ -311,7 +315,7 @@ export default function DashboardPage() {
                     <div>
                       <label className="block text-xs font-semibold text-foreground/80 mb-2">Pilih Komoditas Utama</label>
                       <div className="grid grid-cols-2 gap-2.5">
-                        {KOMODITAS_LIST.map((item) => (
+                        {COMMODITY_LIST.map((item) => (
                           <button
                             type="button"
                             key={item.id}
@@ -335,7 +339,7 @@ export default function DashboardPage() {
                         onChange={(e) => setFaseTanam(e.target.value as FaseTanam)}
                         className="w-full px-4 py-2.5 rounded-2xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
                       >
-                        {FASE_TANAM_LIST.map((item) => (
+                        {GROWTH_PHASE_LIST.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.label} — {item.desc}
                           </option>
@@ -434,15 +438,15 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-xs text-muted-foreground font-semibold">Komoditas:</span>
                       <span className="text-xs font-bold text-foreground capitalize flex items-center gap-1">
-                        {KOMODITAS_LIST.find((k) => k.id === komoditas)?.icon}
-                        {KOMODITAS_LIST.find((k) => k.id === komoditas)?.label}
+                        {COMMODITY_LIST.find((k) => k.id === komoditas)?.icon}
+                        {COMMODITY_LIST.find((k) => k.id === komoditas)?.label}
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-xs text-muted-foreground font-semibold">Fase Tanam:</span>
                       <span className="text-xs font-bold text-foreground">
-                        {FASE_TANAM_LIST.find((f) => f.id === faseTanam)?.label}
+                        {GROWTH_PHASE_LIST.find((f) => f.id === faseTanam)?.label}
                       </span>
                     </div>
 
@@ -527,8 +531,8 @@ export default function DashboardPage() {
                 className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-none scroll-smooth"
               >
                 {lahanList.map((lahan) => {
-                  const km = KOMODITAS_LIST.find((k) => k.id === lahan.komoditas);
-                  const ft = FASE_TANAM_LIST.find((f) => f.id === lahan.faseTanam);
+                  const km = COMMODITY_LIST.find((k) => k.id === lahan.komoditas);
+                  const ft = GROWTH_PHASE_LIST.find((f) => f.id === lahan.faseTanam);
                   return (
                     <div
                       key={lahan.id}
@@ -593,9 +597,8 @@ export default function DashboardPage() {
                         });
                       }
                     }}
-                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${
-                      activeDot < lahanList.length - 1 ? "w-4" : "w-1.5"
-                    }`}
+                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${activeDot < lahanList.length - 1 ? "w-4" : "w-1.5"
+                      }`}
                     style={{ opacity: activeDot < lahanList.length - 1 ? 1 : 0.25 }}
                     aria-label="Ke lahan pertama"
                   />
@@ -614,9 +617,8 @@ export default function DashboardPage() {
                         });
                       }
                     }}
-                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${
-                      activeDot === lahanList.length - 1 ? "w-4" : "w-1.5"
-                    }`}
+                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${activeDot === lahanList.length - 1 ? "w-4" : "w-1.5"
+                      }`}
                     style={{ opacity: activeDot === lahanList.length - 1 ? 1 : 0.25 }}
                     aria-label="Ke lahan terakhir"
                   />
@@ -627,7 +629,7 @@ export default function DashboardPage() {
             {/* ================= INTEGRASI EXTRA: CUACA & HARGA LAHAN SECARA DINAMIS ================= */}
             {lahanList.length > 0 && (
               <div className="space-y-4">
-                
+
                 {/* Selector Tab Lahan (Hanya tampil jika ada lebih dari 1 lahan) */}
                 {lahanList.length > 1 && (
                   <div className="bg-card rounded-2xl p-3.5 border border-border shadow-sm space-y-2">
@@ -636,7 +638,7 @@ export default function DashboardPage() {
                     </label>
                     <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                       {lahanList.map((lahan, idx) => {
-                        const km = KOMODITAS_LIST.find((k) => k.id === lahan.komoditas);
+                        const km = COMMODITY_LIST.find((k) => k.id === lahan.komoditas);
                         return (
                           <button
                             key={lahan.id}
@@ -652,11 +654,10 @@ export default function DashboardPage() {
                                 });
                               }
                             }}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all min-h-[38px] ${
-                              activeLahanIndex === idx
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all min-h-[38px] ${activeLahanIndex === idx
                                 ? "border-primary bg-primary/5 text-primary"
                                 : "border-border bg-background text-foreground/80 hover:border-muted-foreground/30"
-                            }`}
+                              }`}
                           >
                             <span>{km?.icon}</span>
                             <span>{lahan.namaLahan}</span>
@@ -669,9 +670,9 @@ export default function DashboardPage() {
 
                 {(() => {
                   const activeLahan = lahanList[activeLahanIndex] || lahanList[0];
-                  const weather = mockApi.getWeatherByCoords(activeLahan.koordinat.lat, activeLahan.koordinat.lng);
-                  const price = mockApi.getPriceTrendByCommodity(activeLahan.komoditas);
-                  
+                  const weather = getWeatherByCoords(activeLahan.koordinat.lat, activeLahan.koordinat.lng);
+                  const price = getPriceTrendByCommodity(activeLahan.komoditas);
+
                   return (
                     <div className="grid grid-cols-1 gap-4">
                       {/* Info Cuaca BMKG Lahan Terpilih */}
@@ -683,7 +684,7 @@ export default function DashboardPage() {
                           </h4>
                           <span className="text-[10px] text-sky-700 font-bold bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">BMKG</span>
                         </div>
-                        
+
                         <div className="flex items-center gap-4">
                           <span className="text-4xl">{weather.icon}</span>
                           <div>
@@ -691,7 +692,7 @@ export default function DashboardPage() {
                               <span className="text-lg font-black text-sky-900">{weather.status}</span>
                               <span className="text-sm font-semibold text-sky-700">({weather.temp})</span>
                             </div>
-                            
+
                             <div className="flex items-center gap-3 text-xs text-sky-700 mt-1">
                               <span className="flex items-center gap-1"><Droplets className="w-3.5 h-3.5 text-sky-600" /> Kelembaban: {weather.humidity}</span>
                               <span className="flex items-center gap-1"><Thermometer className="w-3.5 h-3.5 text-sky-600" /> Rata-rata</span>
@@ -722,23 +723,21 @@ export default function DashboardPage() {
                             </span>
                           </div>
 
-                          <div className={`text-right px-3 py-1.5 rounded-2xl border text-xs font-bold ${
-                            price.status === "naik"
+                          <div className={`text-right px-3 py-1.5 rounded-2xl border text-xs font-bold ${price.status === "naik"
                               ? "bg-emerald-500/10 border-emerald-500/15 text-emerald-600"
                               : price.status === "turun"
-                              ? "bg-rose-500/10 border-rose-500/15 text-rose-600"
-                              : "bg-muted border-border text-muted-foreground"
-                          }`}>
+                                ? "bg-rose-500/10 border-rose-500/15 text-rose-600"
+                                : "bg-muted border-border text-muted-foreground"
+                            }`}>
                             <div>{price.diffText} ({price.percentage})</div>
                             <span className="text-[10px] uppercase font-semibold tracking-wider block mt-0.5">Minggu Ini</span>
                           </div>
                         </div>
 
-                        <div className={`p-3 rounded-2xl text-xs leading-relaxed flex items-center justify-between ${
-                          price.status === "turun"
+                        <div className={`p-3 rounded-2xl text-xs leading-relaxed flex items-center justify-between ${price.status === "turun"
                             ? "bg-rose-500/10 text-rose-800 border border-rose-500/15"
                             : "bg-emerald-500/10 text-emerald-800 border border-emerald-500/15"
-                        }`}>
+                          }`}>
                           <span className="font-semibold">Kondisi Pasar Wilayah:</span>
                           <span className="font-black">{price.marketStatus}</span>
                         </div>
@@ -821,7 +820,7 @@ export default function DashboardPage() {
                 onClick={() => {
                   // Switch role to farmer to test onboarding wizard
                   const updated: UserProfile = { ...user, role: "farmer" };
-                  mockApi.saveCurrentUser(updated);
+                  authApi.saveCurrentUser(updated);
                   loadData();
                 }}
                 className="w-full py-3.5 px-4 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/95 font-bold text-xs transition-all min-h-[44px]"
