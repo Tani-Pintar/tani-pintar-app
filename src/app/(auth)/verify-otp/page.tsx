@@ -4,12 +4,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Leaf, ArrowLeft, MessageSquare, CheckCircle, RefreshCw } from "lucide-react";
+import { authApi } from "@/lib/api/authApi";
 
 export default function VerifyOtpPage() {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [role, setRole] = useState("");
   const [fullName, setFullName] = useState("");
+  const [purpose, setPurpose] = useState<"REGISTER" | "LOGIN">("REGISTER");
   
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [timer, setTimer] = useState(59);
@@ -34,8 +36,9 @@ export default function VerifyOtpPage() {
       if (pendingData) {
         const parsed = JSON.parse(pendingData);
         setPhoneNumber(parsed.phoneNumber);
-        setRole(parsed.role);
-        setFullName(parsed.fullName);
+        setRole(parsed.role || "");
+        setFullName(parsed.fullName || "");
+        setPurpose(parsed.purpose || "REGISTER");
       } else {
         // Jika tidak ada data pending, balikkan ke register
         router.push("/register");
@@ -78,18 +81,27 @@ export default function VerifyOtpPage() {
     }
   };
 
-  // Simulasikan pengiriman ulang OTP
+  // Pengiriman ulang OTP via backend
   const handleResend = async () => {
     setIsResending(true);
     setError("");
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setTimer(59);
-    setIsResending(false);
-    setOtp(["", "", "", "", "", ""]);
-    inputRefs[0].current?.focus();
+    try {
+      const res = await authApi.resendOtp({ phoneNumber, purpose });
+      if (res.success) {
+        setTimer(59);
+        setOtp(["", "", "", "", "", ""]);
+        inputRefs[0].current?.focus();
+      } else {
+        setError(res.message || "Gagal mengirim ulang kode OTP");
+      }
+    } catch (err) {
+      setError("Terjadi kesalahan server saat mengirim ulang kode OTP");
+    } finally {
+      setIsResending(false);
+    }
   };
 
-  // Verifikasi Kode OTP
+  // Verifikasi Kode OTP via backend
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join("");
@@ -102,31 +114,36 @@ export default function VerifyOtpPage() {
     setIsVerifying(true);
     setError("");
 
-    // Simulasi verifikasi (hanya menerima kode '123456' sesuai api contract)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const res = await authApi.verifyOtp({ phoneNumber, otp: code });
+      if (res.success && res.user) {
+        // Simpan status login di sessionStorage
+        authApi.saveCurrentUser(res.user);
+        
+        // Bersihkan pending data pendaftaran
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("pending_register");
+        }
 
-    if (code !== "123456") {
-      setError("Kode OTP salah. Gunakan kode simulasi '123456'.");
-      setIsVerifying(false);
-      return;
-    }
+        setIsVerifying(false);
+        setIsSuccess(true);
 
-    setIsVerifying(false);
-    setIsSuccess(true);
-
-    // Simpan status login
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("user_authenticated", "true");
-    }
-
-    // Redirect setelah sukses menampilkan animasi
-    setTimeout(() => {
-      if (role === "buyer") {
-        router.push("/buyer/dashboard");
+        // Redirect setelah sukses menampilkan animasi
+        setTimeout(() => {
+          if (res.user.role === "buyer") {
+            router.push("/buyer/dashboard");
+          } else {
+            router.push("/farmer/dashboard");
+          }
+        }, 2000);
       } else {
-        router.push("/farmer/dashboard");
+        setError(res.message || "Kode OTP salah");
+        setIsVerifying(false);
       }
-    }, 2000);
+    } catch (err) {
+      setError("Terjadi kesalahan server saat memverifikasi OTP");
+      setIsVerifying(false);
+    }
   };
 
   // Format nomor HP ke format yang lebih cantik (+62 812-XXXX-XXXX)

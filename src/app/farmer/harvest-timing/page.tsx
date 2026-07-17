@@ -35,23 +35,40 @@ export default function HarvestTimingPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const currentUser = authApi.getCurrentUser();
-    if (currentUser) {
-      if (currentUser.role !== "farmer") {
-        router.push("/farmer/dashboard");
-        return;
-      }
-      setUser(currentUser);
+    const checkAuthAndLoad = async () => {
+      let currentUser = authApi.getCurrentUser();
 
-      const userLahan = landApi.getLandList();
-      setLahanList(userLahan);
-      if (userLahan.length > 0) {
-        setSelectedLahanId(userLahan[0].id);
+      if (!currentUser) {
+        try {
+          const res = await authApi.getMe();
+          if (res.success && res.user) {
+            authApi.saveCurrentUser(res.user);
+            currentUser = res.user;
+          }
+        } catch (err) {
+          console.error("Failed to fetch session from server:", err);
+        }
       }
-    } else {
-      router.push("/register");
-    }
-    setIsLoading(false);
+
+      if (currentUser) {
+        if (currentUser.role !== "farmer") {
+          router.push("/buyer/dashboard");
+          return;
+        }
+        setUser(currentUser);
+
+        const userLahan = await landApi.getLandList();
+        setLahanList(userLahan);
+        if (userLahan.length > 0) {
+          setSelectedLahanId(userLahan[0].id);
+        }
+      } else {
+        router.push("/register");
+      }
+      setIsLoading(false);
+    };
+
+    checkAuthAndLoad();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,7 +87,7 @@ export default function HarvestTimingPage() {
 
     try {
       // 1. Create Plan
-      const newPlan = harvestPlanApi.createHarvestPlan({
+      const newPlan = await harvestPlanApi.createHarvestPlan({
         landId: selectedLahan.id,
         commodity: selectedLahan.komoditas,
         estimatedVolume: Number(estimatedVolume),
@@ -79,7 +96,7 @@ export default function HarvestTimingPage() {
       });
 
       // 2. Trigger async recommendation
-      harvestPlanApi.triggerRecommendations(newPlan.id);
+      await harvestPlanApi.triggerRecommendations(newPlan.id);
 
       // 3. Navigate back to dashboard immediately
       router.push("/farmer/dashboard");

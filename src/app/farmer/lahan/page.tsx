@@ -57,9 +57,22 @@ export default function LahanPage() {
   // Delete Dialog State
   const [deletingLahanId, setDeletingLahanId] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoading(true);
-    const currentUser = authApi.getCurrentUser();
+    let currentUser = authApi.getCurrentUser();
+
+    if (!currentUser) {
+      try {
+        const res = await authApi.getMe();
+        if (res.success && res.user) {
+          authApi.saveCurrentUser(res.user);
+          currentUser = res.user;
+        }
+      } catch (err) {
+        console.error("Failed to fetch session from server:", err);
+      }
+    }
+
     if (currentUser) {
       if (currentUser.role !== "farmer") {
         // Hanya petani yang boleh mengakses halaman lahan ini
@@ -67,7 +80,7 @@ export default function LahanPage() {
         return;
       }
       setUser(currentUser);
-      setLahanList(landApi.getLandList());
+      setLahanList(await landApi.getLandList());
     } else {
       router.push("/register");
     }
@@ -147,10 +160,10 @@ export default function LahanPage() {
 
       if (editingLahanId) {
         // Edit mode
-        landApi.updateLand(editingLahanId, rawLahan);
+        await landApi.updateLand(editingLahanId, rawLahan);
       } else {
         // Add mode
-        landApi.createLand(rawLahan);
+        await landApi.createLand(rawLahan);
       }
 
       handleCloseForm();
@@ -163,9 +176,9 @@ export default function LahanPage() {
   };
 
   // Konfirmasi & Hapus Lahan
-  const handleDeleteLahan = () => {
+  const handleDeleteLahan = async () => {
     if (!deletingLahanId) return;
-    const success = landApi.deleteLand(deletingLahanId);
+    const success = await landApi.deleteLand(deletingLahanId);
     if (success) {
       setDeletingLahanId(null);
       loadData();

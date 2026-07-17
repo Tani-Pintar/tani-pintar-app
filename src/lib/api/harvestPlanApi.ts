@@ -1,40 +1,43 @@
 import { HarvestPlan, Recommendation, Komoditas, VolumeUnit } from "@/types";
 import { STORAGE_KEYS } from "@/data/constants";
-import { getCurrentUser } from "./authApi";
 
 export const harvestPlanApi = {
   // 1. Create Harvest Plan
-  createHarvestPlan: (planData: { landId?: string | null; commodity: Komoditas | string; estimatedVolume: number; volumeUnit: VolumeUnit; readyToHarvestDate: string; notes?: string }): HarvestPlan => {
-    const user = getCurrentUser();
-    if (!user) throw new Error("Unauthorized");
-
-    const newPlan: HarvestPlan = {
-      id: "hp-" + Math.random().toString(36).substring(2, 9),
-      farmerProfileId: user.phoneNumber,
-      landId: planData.landId || null,
+  createHarvestPlan: async (planData: { landId?: string | null; commodity: Komoditas | string; estimatedVolume: number; volumeUnit: VolumeUnit; readyToHarvestDate: string; notes?: string }): Promise<HarvestPlan> => {
+    const payload = {
+      landId: planData.landId || undefined,
       commodity: planData.commodity,
       estimatedVolume: planData.estimatedVolume,
       volumeUnit: planData.volumeUnit,
       readyToHarvestDate: planData.readyToHarvestDate,
-      status: "PLANNED",
-      notes: planData.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      notes: planData.notes || undefined,
     };
 
-    if (typeof window !== "undefined") {
-      const plansStr = localStorage.getItem(STORAGE_KEYS.HARVEST_PLANS);
-      const allPlans: HarvestPlan[] = plansStr ? JSON.parse(plansStr) : [];
-      allPlans.push(newPlan);
-      localStorage.setItem(STORAGE_KEYS.HARVEST_PLANS, JSON.stringify(allPlans));
+    const res = await fetch("/api/harvest-plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorJson = await res.json().catch(() => ({}));
+      throw new Error(errorJson.message || "Gagal membuat rencana panen.");
     }
 
-    return newPlan;
+    const plan = await res.json();
+    return {
+      ...plan,
+      readyToHarvestDate: new Date(plan.readyToHarvestDate).toISOString().split("T")[0],
+    };
   },
 
-  // 2. Trigger Recommendations (Mock Async Job)
-  triggerRecommendations: (harvestPlanId: string): { jobId: string; status: string; estimatedCompletionAt: string } => {
-    const jobId = "job-" + Math.random().toString(36).substring(2, 9);
+  // 2. Trigger Recommendations
+  triggerRecommendations: async (harvestPlanId: string): Promise<{ jobId: string; status: string; estimatedCompletionAt: string }> => {
+    const res = await fetch(`/api/harvest-plans/${harvestPlanId}/trigger-recommendations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: true }),
+    });
 
     if (typeof window !== "undefined") {
       setTimeout(() => {
@@ -139,43 +142,45 @@ export const harvestPlanApi = {
       }, 2000); // 2 second delay
     }
 
-    return {
-      jobId,
-      status: "QUEUED",
-      estimatedCompletionAt: new Date(Date.now() + 2000).toISOString()
-    };
+    return res.json();
   },
 
   // 3. Get Recommendations by Plan ID
-  getRecommendationsByPlanId: (harvestPlanId: string, type?: string): { data: Recommendation[] } => {
-    if (typeof window === "undefined") return { data: [] };
-
-    const recsStr = localStorage.getItem(STORAGE_KEYS.RECOMMENDATIONS);
-    const allRecs: Recommendation[] = recsStr ? JSON.parse(recsStr) : [];
-
-    let filtered = allRecs.filter(r => r.harvestPlanId === harvestPlanId);
-    if (type) {
-      filtered = filtered.filter(r => r.type === type);
+  getRecommendationsByPlanId: async (harvestPlanId: string, type?: string): Promise<{ data: Recommendation[] }> => {
+    try {
+      let url = `/api/recommendations?harvestPlanId=${harvestPlanId}`;
+      if (type) {
+        url += `&type=${type}`;
+      }
+      const res = await fetch(url);
+      if (!res.ok) return { data: [] };
+      const json = await res.json();
+      return { data: json.data || [] };
+    } catch (err) {
+      console.error("Failed to fetch recommendations:", err);
+      return { data: [] };
     }
-
-    return { data: filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) };
   },
 
   // 4. Get Harvest Plans for the current user
-  getHarvestPlans: (landId?: string): { data: HarvestPlan[] } => {
-    if (typeof window === "undefined") return { data: [] };
+  getHarvestPlans: async (landId?: string): Promise<{ data: HarvestPlan[] }> => {
+    try {
+      const res = await fetch("/api/harvest-plans?pageSize=100");
+      if (!res.ok) return { data: [] };
+      const json = await res.json();
+      let list: HarvestPlan[] = (json.data || []).map((plan: any) => ({
+        ...plan,
+        readyToHarvestDate: new Date(plan.readyToHarvestDate).toISOString().split("T")[0],
+      }));
 
-    const user = getCurrentUser();
-    if (!user) return { data: [] };
+      if (landId) {
+        list = list.filter((p) => p.landId === landId);
+      }
 
-    const plansStr = localStorage.getItem(STORAGE_KEYS.HARVEST_PLANS);
-    const allPlans: HarvestPlan[] = plansStr ? JSON.parse(plansStr) : [];
-
-    let filtered = allPlans.filter(p => p.farmerProfileId === user.phoneNumber);
-    if (landId) {
-      filtered = filtered.filter(p => p.landId === landId);
+      return { data: list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) };
+    } catch (err) {
+      console.error("Failed to fetch harvest plans:", err);
+      return { data: [] };
     }
-
-    return { data: filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) };
   }
 };
