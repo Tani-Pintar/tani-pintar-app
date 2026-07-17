@@ -35,6 +35,11 @@ export default function HarvestTimingPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
+    const currentUser = authApi.getCurrentUser();
+    if (currentUser) {
+      if (currentUser.role !== "farmer") {
+        router.push("/farmer/dashboard");
+        return;
     const checkAuthAndLoad = async () => {
       let currentUser = authApi.getCurrentUser();
 
@@ -99,7 +104,7 @@ export default function HarvestTimingPage() {
       await harvestPlanApi.triggerRecommendations(newPlan.id);
 
       // 3. Navigate back to dashboard immediately
-      router.push("/dashboard");
+      router.push("/farmer/dashboard");
     } catch (err: any) {
       setFormError(err.message || "Terjadi kesalahan sistem.");
       setIsSubmitting(false);
