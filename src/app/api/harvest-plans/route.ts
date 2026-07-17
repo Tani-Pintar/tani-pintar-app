@@ -16,10 +16,24 @@ import {
 } from "@/lib/api-error";
 
 async function getFarmerProfileByUserId(userId: string) {
-  return prisma.farmerProfile.findUnique({
+  let profile = await prisma.farmerProfile.findUnique({
     where: { userId },
     select: { id: true },
   });
+  if (!profile) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (user && user.role === "PETANI") {
+      profile = await prisma.farmerProfile.create({
+        data: {
+          userId: userId,
+          fullName: user.fullName || "Petani",
+          contactPhone: user.phoneNumber,
+        },
+        select: { id: true },
+      });
+    }
+  }
+  return profile;
 }
 
 // §6.2 GET list — PETANI (milik sendiri) atau ADMIN (semua)

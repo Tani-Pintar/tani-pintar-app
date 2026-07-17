@@ -80,7 +80,7 @@ export default function LahanPage() {
         return;
       }
       setUser(currentUser);
-      setLahanList(landApi.getLandList());
+      setLahanList(await landApi.getLandList());
     } else {
       router.push("/register");
     }
@@ -160,10 +160,10 @@ export default function LahanPage() {
 
       if (editingLahanId) {
         // Edit mode
-        landApi.updateLand(editingLahanId, rawLahan);
+        await landApi.updateLand(editingLahanId, rawLahan);
       } else {
         // Add mode
-        landApi.createLand(rawLahan);
+        await landApi.createLand(rawLahan);
       }
 
       handleCloseForm();
@@ -176,9 +176,9 @@ export default function LahanPage() {
   };
 
   // Konfirmasi & Hapus Lahan
-  const handleDeleteLahan = () => {
+  const handleDeleteLahan = async () => {
     if (!deletingLahanId) return;
-    const success = landApi.deleteLand(deletingLahanId);
+    const success = await landApi.deleteLand(deletingLahanId);
     if (success) {
       setDeletingLahanId(null);
       loadData();

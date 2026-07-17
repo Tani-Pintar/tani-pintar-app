@@ -57,7 +57,7 @@ export default function HarvestTimingPage() {
         }
         setUser(currentUser);
 
-        const userLahan = landApi.getLandList();
+        const userLahan = await landApi.getLandList();
         setLahanList(userLahan);
         if (userLahan.length > 0) {
           setSelectedLahanId(userLahan[0].id);
@@ -87,7 +87,7 @@ export default function HarvestTimingPage() {
 
     try {
       // 1. Create Plan
-      const newPlan = harvestPlanApi.createHarvestPlan({
+      const newPlan = await harvestPlanApi.createHarvestPlan({
         landId: selectedLahan.id,
         commodity: selectedLahan.komoditas,
         estimatedVolume: Number(estimatedVolume),
@@ -96,7 +96,7 @@ export default function HarvestTimingPage() {
       });
 
       // 2. Trigger async recommendation
-      harvestPlanApi.triggerRecommendations(newPlan.id);
+      await harvestPlanApi.triggerRecommendations(newPlan.id);
 
       // 3. Navigate back to dashboard immediately
       router.push("/dashboard");

@@ -114,7 +114,7 @@ export default function DashboardPage() {
 
     if (currentUser) {
       setUser(currentUser);
-      const list = landApi.getLandList();
+      const list = await landApi.getLandList();
       setLahanList(list);
       
       const targetActiveIndex = Math.min(activeLahanIndex, list.length - 1 >= 0 ? list.length - 1 : 0);
@@ -123,12 +123,12 @@ export default function DashboardPage() {
       // Fetch Harvest Plans
       const activeLahan = list[targetActiveIndex];
       if (activeLahan) {
-        const plansRes = harvestPlanApi.getHarvestPlans(activeLahan.id);
+        const plansRes = await harvestPlanApi.getHarvestPlans(activeLahan.id);
         if (plansRes.data.length > 0) {
           const latestPlan = plansRes.data[0];
           setHarvestPlan(latestPlan);
           
-          const recsRes = harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "HARVEST_TIMING");
+          const recsRes = await harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "HARVEST_TIMING");
           if (recsRes.data.length > 0) {
             setRecommendation(recsRes.data[0]);
             setIsGeneratingRec(false);
@@ -158,12 +158,16 @@ export default function DashboardPage() {
   // Poll for recommendation if it's currently generating
   useEffect(() => {
     if (isGeneratingRec && harvestPlan) {
-      const interval = setInterval(() => {
-        const recsRes = harvestPlanApi.getRecommendationsByPlanId(harvestPlan.id, "HARVEST_TIMING");
-        if (recsRes.data.length > 0) {
-          setRecommendation(recsRes.data[0]);
-          setIsGeneratingRec(false);
-          clearInterval(interval);
+      const interval = setInterval(async () => {
+        try {
+          const recsRes = await harvestPlanApi.getRecommendationsByPlanId(harvestPlan.id, "HARVEST_TIMING");
+          if (recsRes.data.length > 0) {
+            setRecommendation(recsRes.data[0]);
+            setIsGeneratingRec(false);
+            clearInterval(interval);
+          }
+        } catch (err) {
+          console.error("Error polling recommendations:", err);
         }
       }, 1000);
       return () => clearInterval(interval);
@@ -222,10 +226,7 @@ export default function DashboardPage() {
     setFormError("");
 
     try {
-      // Simulasikan delay network
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      landApi.createLand({
+      await landApi.createLand({
         namaLahan,
         luasLahan: parseFloat(luasLahan),
         komoditas,
@@ -289,7 +290,7 @@ export default function DashboardPage() {
       {/* Main Container */}
       <main className="flex-1 w-full max-w-lg mx-auto px-4 py-6">
         {/* ================= MODE: FARMER ONBOARDING WIZARD ================= */}
-        {user.role === "farmer" && isOnboarding && (
+        {user.role === "farmer" && (isOnboarding || lahanList.length === 0) && (
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}

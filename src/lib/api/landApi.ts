@@ -1,80 +1,132 @@
-import { LahanProfile } from "@/types";
-import { STORAGE_KEYS } from "@/data/constants";
-import { getCurrentUser } from "./authApi";
+import { LahanProfile, Komoditas, FaseTanam } from "@/types";
 
-export const getLandList = (): LahanProfile[] => {
-  if (typeof window === "undefined") return [];
-  const user = getCurrentUser();
-  if (!user) return [];
-
-  const landStr = localStorage.getItem(STORAGE_KEYS.LAHAN);
-  const allLands: LahanProfile[] = landStr ? JSON.parse(landStr) : [];
-
-  return allLands.filter((item) => item.userId === user.phoneNumber);
+const mapBackendPhaseToFrontend = (phase: string): FaseTanam => {
+  switch (phase) {
+    case "PERSIAPAN_LAHAN": return "persiapan";
+    case "PENANAMAN": return "awal_tanam";
+    case "PEMELIHARAAN": return "vegetatif";
+    case "PANEN": return "siap_panen";
+    case "PASCA_PANEN": return "siap_panen";
+    default: return "persiapan";
+  }
 };
 
-export const getLandById = (id: string): LahanProfile | null => {
-  const list = getLandList();
-  return list.find((item) => item.id === id) || null;
+const mapFrontendPhaseToBackend = (phase: FaseTanam): string => {
+  switch (phase) {
+    case "persiapan": return "PERSIAPAN_LAHAN";
+    case "awal_tanam": return "PENANAMAN";
+    case "vegetatif": return "PEMELIHARAAN";
+    case "generatif": return "PEMELIHARAAN";
+    case "siap_panen": return "PANEN";
+    default: return "PERSIAPAN_LAHAN";
+  }
 };
 
-export const createLand = (landData: Omit<LahanProfile, "id" | "userId" | "createdAt">): LahanProfile => {
-  const user = getCurrentUser();
-  if (!user) throw new Error("Anda harus masuk untuk menambahkan lahan.");
+export const mapLandToLahanProfile = (land: any): LahanProfile => {
+  return {
+    id: land.id,
+    userId: land.farmerProfileId,
+    namaLahan: land.name,
+    luasLahan: land.areaSize,
+    komoditas: land.commodityType as Komoditas,
+    faseTanam: mapBackendPhaseToFrontend(land.plantingPhase),
+    koordinat: {
+      lat: land.latitude || 0,
+      lng: land.longitude || 0,
+    },
+    alamat: land.address || "",
+    tanggalTanam: land.createdAt,
+    createdAt: land.createdAt,
+  };
+};
 
-  const newLand: LahanProfile = {
-    ...landData,
-    id: "lahan-" + Math.random().toString(36).substr(2, 9),
-    userId: user.phoneNumber,
-    createdAt: new Date().toISOString(),
+export const getLandList = async (): Promise<LahanProfile[]> => {
+  try {
+    const res = await fetch("/api/farmers/lands");
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (json && json.data) {
+      return json.data.map(mapLandToLahanProfile);
+    }
+    return [];
+  } catch (err) {
+    console.error("Failed to fetch land list:", err);
+    return [];
+  }
+};
+
+export const getLandById = async (id: string): Promise<LahanProfile | null> => {
+  try {
+    const res = await fetch(`/api/farmers/lands/${id}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    return mapLandToLahanProfile(json);
+  } catch (err) {
+    console.error(`Failed to fetch land ${id}:`, err);
+    return null;
+  }
+};
+
+export const createLand = async (landData: Omit<LahanProfile, "id" | "userId" | "createdAt">): Promise<LahanProfile> => {
+  const payload = {
+    name: landData.namaLahan,
+    commodityType: landData.komoditas,
+    areaSize: landData.luasLahan,
+    areaUnit: "hektar",
+    plantingPhase: mapFrontendPhaseToBackend(landData.faseTanam),
+    latitude: landData.koordinat.lat,
+    longitude: landData.koordinat.lng,
+    address: landData.alamat,
   };
 
-  if (typeof window !== "undefined") {
-    const landStr = localStorage.getItem(STORAGE_KEYS.LAHAN);
-    const allLands: LahanProfile[] = landStr ? JSON.parse(landStr) : [];
-    allLands.push(newLand);
-    localStorage.setItem(STORAGE_KEYS.LAHAN, JSON.stringify(allLands));
+  const res = await fetch("/api/farmers/lands", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}));
+    throw new Error(errorJson.message || "Gagal membuat lahan baru.");
   }
 
-  return newLand;
+  const json = await res.json();
+  return mapLandToLahanProfile(json);
 };
 
-export const updateLand = (id: string, updateData: Partial<Omit<LahanProfile, "id" | "userId" | "createdAt">>): LahanProfile => {
-  const user = getCurrentUser();
-  if (!user) throw new Error("Anda harus masuk untuk memperbarui lahan.");
+export const updateLand = async (id: string, updateData: Partial<Omit<LahanProfile, "id" | "userId" | "createdAt">>): Promise<LahanProfile> => {
+  const payload: any = {};
+  if (updateData.namaLahan !== undefined) payload.name = updateData.namaLahan;
+  if (updateData.komoditas !== undefined) payload.commodityType = updateData.komoditas;
+  if (updateData.luasLahan !== undefined) payload.areaSize = updateData.luasLahan;
+  if (updateData.faseTanam !== undefined) payload.plantingPhase = mapFrontendPhaseToBackend(updateData.faseTanam);
+  if (updateData.koordinat?.lat !== undefined) payload.latitude = updateData.koordinat.lat;
+  if (updateData.koordinat?.lng !== undefined) payload.longitude = updateData.koordinat.lng;
+  if (updateData.alamat !== undefined) payload.address = updateData.alamat;
 
-  if (typeof window !== "undefined") {
-    const landStr = localStorage.getItem(STORAGE_KEYS.LAHAN);
-    const allLands: LahanProfile[] = landStr ? JSON.parse(landStr) : [];
+  const res = await fetch(`/api/farmers/lands/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    const index = allLands.findIndex((item) => item.id === id && item.userId === user.phoneNumber);
-    if (index === -1) throw new Error("Lahan tidak ditemukan atau Anda tidak berwenang.");
-
-    allLands[index] = {
-      ...allLands[index],
-      ...updateData,
-    };
-
-    localStorage.setItem(STORAGE_KEYS.LAHAN, JSON.stringify(allLands));
-    return allLands[index];
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}));
+    throw new Error(errorJson.message || "Gagal memperbarui data lahan.");
   }
 
-  throw new Error("Gagal memperbarui: Browser storage tidak tersedia.");
+  const json = await res.json();
+  return mapLandToLahanProfile(json);
 };
 
-export const deleteLand = (id: string): boolean => {
-  const user = getCurrentUser();
-  if (!user) return false;
-
-  if (typeof window !== "undefined") {
-    const landStr = localStorage.getItem(STORAGE_KEYS.LAHAN);
-    const allLands: LahanProfile[] = landStr ? JSON.parse(landStr) : [];
-
-    const filtered = allLands.filter((item) => !(item.id === id && item.userId === user.phoneNumber));
-    const deleted = filtered.length !== allLands.length;
-
-    localStorage.setItem(STORAGE_KEYS.LAHAN, JSON.stringify(filtered));
-    return deleted;
+export const deleteLand = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`/api/farmers/lands/${id}`, {
+      method: "DELETE",
+    });
+    return res.ok;
+  } catch (err) {
+    console.error(`Failed to delete land ${id}:`, err);
+    return false;
   }
-  return false;
 };

@@ -32,15 +32,27 @@ export async function GET(req: NextRequest) {
   const { page, pageSize, commodityType, plantingPhase } = parsed.data as ListLandsQuery;
 
   try {
-    const farmerProfile = await prisma.farmerProfile.findUnique({
+    let farmerProfile = await prisma.farmerProfile.findUnique({
       where: { userId: ctx.userId },
       select: { id: true },
     });
 
     if (!farmerProfile) {
-      return validationError(
-        "Profil petani belum dibuat. Mohon lengkapi profil terlebih dahulu."
-      );
+      const user = await prisma.user.findUnique({ where: { id: ctx.userId } });
+      if (user && user.role === "PETANI") {
+        farmerProfile = await prisma.farmerProfile.create({
+          data: {
+            userId: ctx.userId,
+            fullName: user.fullName || "Petani",
+            contactPhone: user.phoneNumber,
+          },
+          select: { id: true },
+        });
+      } else {
+        return validationError(
+          "Profil petani belum dibuat. Mohon lengkapi profil terlebih dahulu."
+        );
+      }
     }
 
     const where = {
@@ -95,15 +107,27 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const farmerProfile = await prisma.farmerProfile.findUnique({
+    let farmerProfile = await prisma.farmerProfile.findUnique({
       where: { userId: ctx.userId },
       select: { id: true },
     });
 
     if (!farmerProfile) {
-      return validationError(
-        "Profil petani belum dibuat. Mohon lengkapi profil terlebih dahulu."
-      );
+      const user = await prisma.user.findUnique({ where: { id: ctx.userId } });
+      if (user && user.role === "PETANI") {
+        farmerProfile = await prisma.farmerProfile.create({
+          data: {
+            userId: ctx.userId,
+            fullName: user.fullName || "Petani",
+            contactPhone: user.phoneNumber,
+          },
+          select: { id: true },
+        });
+      } else {
+        return validationError(
+          "Profil petani belum dibuat. Mohon lengkapi profil terlebih dahulu."
+        );
+      }
     }
 
     const land = await prisma.land.create({
