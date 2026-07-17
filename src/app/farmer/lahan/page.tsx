@@ -17,7 +17,9 @@ import {
   AlertTriangle,
   FileText,
 } from "lucide-react";
-import { mockApi, KOMODITAS_LIST, FASE_TANAM_LIST } from "@/lib/api/mockApi";
+import * as authApi from "@/lib/api/authApi";
+import * as landApi from "@/lib/api/landApi";
+import { COMMODITY_LIST, GROWTH_PHASE_LIST } from "@/lib/api/metadataApi";
 import { LahanProfile, Komoditas, FaseTanam, UserProfile } from "@/types";
 
 // Load LahanMap secara dinamis (ssr: false)
@@ -57,15 +59,15 @@ export default function LahanPage() {
 
   const loadData = () => {
     setIsLoading(true);
-    const currentUser = mockApi.getCurrentUser();
+    const currentUser = authApi.getCurrentUser();
     if (currentUser) {
       if (currentUser.role !== "farmer") {
         // Hanya petani yang boleh mengakses halaman lahan ini
-        router.push("/dashboard");
+        router.push("/farmer/dashboard");
         return;
       }
       setUser(currentUser);
-      setLahanList(mockApi.getLahanList());
+      setLahanList(landApi.getLandList());
     } else {
       router.push("/register");
     }
@@ -145,10 +147,10 @@ export default function LahanPage() {
 
       if (editingLahanId) {
         // Edit mode
-        mockApi.updateLahan(editingLahanId, rawLahan);
+        landApi.updateLand(editingLahanId, rawLahan);
       } else {
         // Add mode
-        mockApi.createLahan(rawLahan);
+        landApi.createLand(rawLahan);
       }
 
       handleCloseForm();
@@ -163,7 +165,7 @@ export default function LahanPage() {
   // Konfirmasi & Hapus Lahan
   const handleDeleteLahan = () => {
     if (!deletingLahanId) return;
-    const success = mockApi.deleteLahan(deletingLahanId);
+    const success = landApi.deleteLand(deletingLahanId);
     if (success) {
       setDeletingLahanId(null);
       loadData();
@@ -186,7 +188,7 @@ export default function LahanPage() {
       <header className="w-full bg-card/85 backdrop-blur-md sticky top-0 border-b border-border/50 px-4 py-3 z-[100]">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <button
-            onClick={() => router.push("/dashboard")}
+            onClick={() => router.push("/farmer/dashboard")}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold py-1.5 transition-all min-h-[36px]"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -250,8 +252,8 @@ export default function LahanPage() {
               ) : (
                 <div className="space-y-4">
                   {lahanList.map((lahan) => {
-                    const km = KOMODITAS_LIST.find((k) => k.id === lahan.komoditas);
-                    const ft = FASE_TANAM_LIST.find((f) => f.id === lahan.faseTanam);
+                    const km = COMMODITY_LIST.find((k) => k.id === lahan.komoditas);
+                    const ft = GROWTH_PHASE_LIST.find((f) => f.id === lahan.faseTanam);
                     return (
                       <div
                         key={lahan.id}
@@ -400,7 +402,7 @@ export default function LahanPage() {
                   <div>
                     <label className="block text-xs font-semibold text-foreground/80 mb-2">Pilih Komoditas Utama</label>
                     <div className="grid grid-cols-2 gap-2">
-                      {KOMODITAS_LIST.map((item) => (
+                      {COMMODITY_LIST.map((item) => (
                         <button
                           type="button"
                           key={item.id}
@@ -425,7 +427,7 @@ export default function LahanPage() {
                       onChange={(e) => setFaseTanam(e.target.value as FaseTanam)}
                       className="w-full px-4 py-2.5 rounded-2xl border border-border bg-background/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px]"
                     >
-                      {FASE_TANAM_LIST.map((item) => (
+                      {GROWTH_PHASE_LIST.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.label} — {item.desc}
                         </option>
