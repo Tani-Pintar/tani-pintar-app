@@ -70,15 +70,19 @@ export async function POST(req: NextRequest) {
           { status: 404 }
         );
       }
-      const metadata = otpRecord.metadata as { fullName: string; role: "farmer" | "buyer" } | null;
+      const metadata = otpRecord.metadata as { fullName: string; role: string } | null;
       if (!metadata) {
         return NextResponse.json(
           { success: false, message: "Data pendaftaran tidak lengkap, silakan daftar ulang" },
           { status: 400 }
         );
       }
+      const normalizedRole =
+        metadata.role === "farmer" ? "PETANI" :
+        metadata.role === "buyer" ? "BUYER" :
+        "PETANI";
       user = await prisma.user.create({
-        data: { fullName: metadata.fullName, phoneNumber, role: metadata.role },
+        data: { fullName: metadata.fullName, phoneNumber, role: normalizedRole },
       });
     }
 

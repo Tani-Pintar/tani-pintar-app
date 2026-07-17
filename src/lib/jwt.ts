@@ -3,12 +3,14 @@ import { env } from "./env";
 
 export interface SessionPayload {
   sub: string; // user id
-  role: "farmer" | "buyer";
+  role: string; // UserRole: PETANI | BUYER | ADMIN
   phoneNumber: string;
 }
 
 export function signSessionToken(payload: SessionPayload): string {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn });
+  return jwt.sign(payload, env.jwtSecret, {
+    expiresIn: env.jwtExpiresIn as unknown as number,
+  });
 }
 
 export function verifySessionToken(token: string): SessionPayload | null {
