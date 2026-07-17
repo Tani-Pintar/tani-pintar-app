@@ -1,48 +1,84 @@
-export const authApi = {
-  async register(data: { fullName: string; phoneNumber: string; role: "farmer" | "buyer" }) {
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
+import { UserProfile } from "@/types";
+import { STORAGE_KEYS } from "@/data/constants";
 
-  async login(data: { phoneNumber: string }) {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-
-  async verifyOtp(data: { phoneNumber: string; otp: string }) {
-    const res = await fetch("/api/auth/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-
-  async resendOtp(data: { phoneNumber: string; purpose: "REGISTER" | "LOGIN" }) {
-    const res = await fetch("/api/auth/resend-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    return res.json();
-  },
-
-  async getMe() {
-    const res = await fetch("/api/auth/me");
-    if (!res.ok) throw new Error("Unauthorized");
-    return res.json();
-  },
-
-  async logout() {
-    const res = await fetch("/api/auth/logout", { method: "POST" });
-    return res.json();
+export const getCurrentUser = (): UserProfile | null => {
+  if (typeof window === "undefined") return null;
+  const auth = sessionStorage.getItem(STORAGE_KEYS.AUTH);
+  const userStr = sessionStorage.getItem(STORAGE_KEYS.USER);
+  if (auth === "true" && userStr) {
+    return JSON.parse(userStr);
   }
+  return null;
+};
+
+export const saveCurrentUser = (user: UserProfile) => {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+  sessionStorage.setItem(STORAGE_KEYS.AUTH, "true");
+};
+
+export const clearCurrentUser = () => {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(STORAGE_KEYS.USER);
+  sessionStorage.removeItem(STORAGE_KEYS.AUTH);
+};
+
+export const register = async (data: { fullName: string; phoneNumber: string; role: "farmer" | "buyer" }) => {
+  const res = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const login = async (data: { phoneNumber: string }) => {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const verifyOtp = async (data: { phoneNumber: string; otp: string }) => {
+  const res = await fetch("/api/auth/verify-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const resendOtp = async (data: { phoneNumber: string; purpose: "REGISTER" | "LOGIN" }) => {
+  const res = await fetch("/api/auth/resend-otp", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+};
+
+export const getMe = async () => {
+  const res = await fetch("/api/auth/me");
+  if (!res.ok) throw new Error("Unauthorized");
+  return res.json();
+};
+
+export const logout = async () => {
+  const res = await fetch("/api/auth/logout", { method: "POST" });
+  clearCurrentUser();
+  return res.json();
+};
+
+export const authApi = {
+  getCurrentUser,
+  saveCurrentUser,
+  clearCurrentUser,
+  register,
+  login,
+  verifyOtp,
+  resendOtp,
+  getMe,
+  logout,
 };

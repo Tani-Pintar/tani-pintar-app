@@ -57,9 +57,22 @@ export default function LahanPage() {
   // Delete Dialog State
   const [deletingLahanId, setDeletingLahanId] = useState<string | null>(null);
 
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoading(true);
-    const currentUser = authApi.getCurrentUser();
+    let currentUser = authApi.getCurrentUser();
+
+    if (!currentUser) {
+      try {
+        const res = await authApi.getMe();
+        if (res.success && res.user) {
+          authApi.saveCurrentUser(res.user);
+          currentUser = res.user;
+        }
+      } catch (err) {
+        console.error("Failed to fetch session from server:", err);
+      }
+    }
+
     if (currentUser) {
       if (currentUser.role !== "farmer") {
         // Hanya petani yang boleh mengakses halaman lahan ini

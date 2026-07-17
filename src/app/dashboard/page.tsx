@@ -96,9 +96,22 @@ export default function DashboardPage() {
   );
 
   // Muat status user dan lahan saat inisialisasi
-  const loadData = () => {
+  const loadData = async () => {
     setIsLoading(true);
-    const currentUser = authApi.getCurrentUser();
+    let currentUser = authApi.getCurrentUser();
+
+    if (!currentUser) {
+      try {
+        const res = await authApi.getMe();
+        if (res.success && res.user) {
+          authApi.saveCurrentUser(res.user);
+          currentUser = res.user;
+        }
+      } catch (err) {
+        console.error("Failed to fetch session from server:", err);
+      }
+    }
+
     if (currentUser) {
       setUser(currentUser);
       const list = landApi.getLandList();
@@ -161,9 +174,14 @@ export default function DashboardPage() {
     loadData();
   }, [router, activeLahanIndex]);
 
-  const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      sessionStorage.clear();
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch (err) {
+      console.error("Failed to call logout API:", err);
+      if (typeof window !== "undefined") {
+        sessionStorage.clear();
+      }
     }
     router.push("/register");
   };

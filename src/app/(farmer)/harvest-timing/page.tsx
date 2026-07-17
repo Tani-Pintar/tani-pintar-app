@@ -35,23 +35,40 @@ export default function HarvestTimingPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const currentUser = authApi.getCurrentUser();
-    if (currentUser) {
-      if (currentUser.role !== "farmer") {
-        router.push("/dashboard");
-        return;
-      }
-      setUser(currentUser);
+    const checkAuthAndLoad = async () => {
+      let currentUser = authApi.getCurrentUser();
 
-      const userLahan = landApi.getLandList();
-      setLahanList(userLahan);
-      if (userLahan.length > 0) {
-        setSelectedLahanId(userLahan[0].id);
+      if (!currentUser) {
+        try {
+          const res = await authApi.getMe();
+          if (res.success && res.user) {
+            authApi.saveCurrentUser(res.user);
+            currentUser = res.user;
+          }
+        } catch (err) {
+          console.error("Failed to fetch session from server:", err);
+        }
       }
-    } else {
-      router.push("/register");
-    }
-    setIsLoading(false);
+
+      if (currentUser) {
+        if (currentUser.role !== "farmer") {
+          router.push("/dashboard");
+          return;
+        }
+        setUser(currentUser);
+
+        const userLahan = landApi.getLandList();
+        setLahanList(userLahan);
+        if (userLahan.length > 0) {
+          setSelectedLahanId(userLahan[0].id);
+        }
+      } else {
+        router.push("/register");
+      }
+      setIsLoading(false);
+    };
+
+    checkAuthAndLoad();
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

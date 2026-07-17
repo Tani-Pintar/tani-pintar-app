@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { motion } from "framer-motion";
 import { Leaf, Sprout, Briefcase, ArrowRight, Phone, User } from "lucide-react";
-
+import { authApi } from "@/lib/api/authApi";
+ 
 // Schema validasi menggunakan Zod
 const registerSchema = z.object({
   fullName: z.string().min(3, { message: "Nama lengkap minimal 3 karakter" }),
@@ -22,9 +23,9 @@ const registerSchema = z.object({
     required_error: "Silakan pilih peran Anda",
   }),
 });
-
+ 
 type RegisterFormValues = z.infer<typeof registerSchema>;
-
+ 
 export default function RegisterPage() {
   const router = useRouter();
   
@@ -33,6 +34,7 @@ export default function RegisterPage() {
     handleSubmit,
     setValue,
     watch,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -42,9 +44,9 @@ export default function RegisterPage() {
       role: "farmer",
     },
   });
-
+ 
   const selectedRole = watch("role");
-
+ 
   const onSubmit = async (data: RegisterFormValues) => {
     // Bersihkan nomor HP dan sesuaikan ke format standar backend 628...
     let cleanPhone = data.phoneNumber.trim().replace(/[^0-9]/g, "");
@@ -53,22 +55,39 @@ export default function RegisterPage() {
     } else if (!cleanPhone.startsWith("62")) {
       cleanPhone = "62" + cleanPhone;
     }
-
+ 
     const sanitizedData = {
       ...data,
       phoneNumber: cleanPhone,
     };
-
-    // Simpan data pendaftaran sementara untuk verifikasi OTP
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("pending_register", JSON.stringify(sanitizedData));
+ 
+    try {
+      const res = await authApi.register(sanitizedData);
+      if (res.success) {
+        // Simpan data pendaftaran sementara untuk verifikasi OTP
+        if (typeof window !== "undefined") {
+          sessionStorage.setItem(
+            "pending_register",
+            JSON.stringify({
+              ...sanitizedData,
+              purpose: "REGISTER",
+            })
+          );
+        }
+        // Redirect ke halaman verifikasi OTP
+        router.push("/verify-otp");
+      } else {
+        setError("phoneNumber", {
+          type: "manual",
+          message: res.message || "Pendaftaran gagal",
+        });
+      }
+    } catch (err) {
+      setError("phoneNumber", {
+        type: "manual",
+        message: "Terjadi kesalahan server saat mencoba mendaftar",
+      });
     }
-    
-    // Simulasikan delay network
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    
-    // Redirect ke halaman verifikasi OTP
-    router.push("/verify-otp");
   };
 
   return (
