@@ -46,12 +46,12 @@ export default function RegisterPage() {
   const selectedRole = watch("role");
 
   const onSubmit = async (data: RegisterFormValues) => {
-    // Bersihkan nomor HP dari format 0812/62812/+62812 menjadi core subscriber 812
+    // Bersihkan nomor HP dan sesuaikan ke format standar backend 628...
     let cleanPhone = data.phoneNumber.trim().replace(/[^0-9]/g, "");
-    if (cleanPhone.startsWith("62")) {
-      cleanPhone = cleanPhone.slice(2);
-    } else if (cleanPhone.startsWith("0")) {
-      cleanPhone = cleanPhone.slice(1);
+    if (cleanPhone.startsWith("0")) {
+      cleanPhone = "62" + cleanPhone.slice(1);
+    } else if (!cleanPhone.startsWith("62")) {
+      cleanPhone = "62" + cleanPhone;
     }
 
     const sanitizedData = {
