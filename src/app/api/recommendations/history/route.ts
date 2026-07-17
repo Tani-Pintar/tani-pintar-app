@@ -69,6 +69,9 @@ export async function GET(req: NextRequest) {
       prisma.recommendation.count({ where }),
       prisma.recommendation.findMany({
         where,
+        include: {
+          harvestPlan: true,
+        },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,

@@ -35,11 +35,6 @@ export default function HarvestTimingPage() {
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
-    const currentUser = authApi.getCurrentUser();
-    if (currentUser) {
-      if (currentUser.role !== "farmer") {
-        router.push("/farmer/dashboard");
-        return;
     const checkAuthAndLoad = async () => {
       let currentUser = authApi.getCurrentUser();
 
@@ -57,7 +52,7 @@ export default function HarvestTimingPage() {
 
       if (currentUser) {
         if (currentUser.role !== "farmer") {
-          router.push("/dashboard");
+          router.push("/buyer/dashboard");
           return;
         }
         setUser(currentUser);

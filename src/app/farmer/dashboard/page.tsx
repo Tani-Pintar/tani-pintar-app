@@ -25,6 +25,7 @@ import {
   Smartphone,
   ChevronRight,
   Activity,
+  Clock,
 } from "lucide-react";
 import * as authApi from "@/lib/api/authApi";
 import * as landApi from "@/lib/api/landApi";
@@ -67,6 +68,10 @@ export default function DashboardPage() {
     null,
   );
   const [sellRecommendation, setSellRecommendation] =
+    useState<Recommendation | null>(null);
+  const [preservationRecommendation, setPreservationRecommendation] =
+    useState<Recommendation | null>(null);
+  const [wasteRecommendation, setWasteRecommendation] =
     useState<Recommendation | null>(null);
   const [isGeneratingRec, setIsGeneratingRec] = useState(false);
 
@@ -153,10 +158,25 @@ export default function DashboardPage() {
             setRecommendation(null);
           }
 
+          const sellRecsRes = await harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "SELL_DESTINATION");
           if (sellRecsRes.data.length > 0) {
             setSellRecommendation(sellRecsRes.data[0]);
           } else {
             setSellRecommendation(null);
+          }
+
+          const preservationRes = await harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "PRESERVATION");
+          if (preservationRes.data.length > 0) {
+            setPreservationRecommendation(preservationRes.data[0]);
+          } else {
+            setPreservationRecommendation(null);
+          }
+
+          const wasteRes = await harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "WASTE_RECOVERY");
+          if (wasteRes.data.length > 0) {
+            setWasteRecommendation(wasteRes.data[0]);
+          } else {
+            setWasteRecommendation(null);
           }
 
           if (recsRes.data.length > 0 || sellRecsRes.data.length > 0) {
@@ -168,6 +188,8 @@ export default function DashboardPage() {
           setHarvestPlan(null);
           setRecommendation(null);
           setSellRecommendation(null);
+          setPreservationRecommendation(null);
+          setWasteRecommendation(null);
           setIsGeneratingRec(false);
         }
       }
@@ -724,6 +746,40 @@ export default function DashboardPage() {
                     Lahan
                   </span>
                 </button>
+
+                <button
+                  onClick={() =>
+                    router.push(
+                      harvestPlan
+                        ? `/farmer/sell-destination?harvestPlanId=${harvestPlan.id}`
+                        : "/farmer/sell-destination"
+                    )
+                  }
+                  className="flex flex-col items-center justify-center p-4 bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 rounded-3xl transition-all shadow-sm gap-3 group active:scale-95"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all">
+                    <Compass className="w-7 h-7" />
+                  </div>
+                  <span className="text-[11px] font-bold text-foreground text-center leading-tight">
+                    Destinasi
+                    <br />
+                    Jual
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => router.push("/farmer/riwayat")}
+                  className="flex flex-col items-center justify-center p-4 bg-card border border-border/80 hover:border-primary/50 hover:bg-primary/5 rounded-3xl transition-all shadow-sm gap-3 group active:scale-95"
+                >
+                  <div className="w-14 h-14 bg-gradient-to-br from-amber-500/10 to-amber-600/10 text-amber-600 dark:text-amber-400 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:shadow-md transition-all">
+                    <Clock className="w-7 h-7" />
+                  </div>
+                  <span className="text-[11px] font-bold text-foreground text-center leading-tight">
+                    Riwayat
+                    <br />
+                    Analitik
+                  </span>
+                </button>
               </div>
             </div>
 
@@ -1095,6 +1151,91 @@ export default function DashboardPage() {
                           Lihat 3 Destinasi Terbaik
                           <ArrowRight className="w-4 h-4" />
                         </button>
+                      </motion.div>
+                    )}
+
+                    {/* Preservation Recommender (FR-06) */}
+                    {preservationRecommendation && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.2 }}
+                        className="bg-card border border-border/80 rounded-3xl p-5 shadow-sm space-y-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                              Preservasi Komoditas (F4)
+                            </span>
+                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mt-2 text-sm">
+                              Panduan Umur Simpan & Penyimpanan
+                            </h4>
+                          </div>
+                          <CheckCircle className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed font-semibold">
+                          {preservationRecommendation.naturalLanguageText}
+                        </p>
+                        {preservationRecommendation.jsonData.recommendations && (
+                          <div className="space-y-2 pt-1">
+                            {(preservationRecommendation.jsonData.recommendations as any[]).map((step: any, index: number) => (
+                              <div key={index} className="flex gap-2.5 items-start bg-muted/40 p-2.5 rounded-xl text-xs">
+                                <span className="w-5 h-5 rounded-full bg-amber-500/10 text-amber-600 font-bold flex items-center justify-center shrink-0">
+                                  {index + 1}
+                                </span>
+                                <div>
+                                  <strong className="block text-foreground">{step.step}</strong>
+                                  <span className="text-muted-foreground">{step.instruction}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </motion.div>
+                    )}
+
+                    {/* Waste Value Recovery (FR-07) */}
+                    {wasteRecommendation && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: 0.3 }}
+                        className="bg-card border border-border/80 rounded-3xl p-5 shadow-sm space-y-4"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                              Penyelamatan Hasil Panen (F5)
+                            </span>
+                            <h4 className="font-bold text-zinc-900 dark:text-zinc-100 mt-2 text-sm">
+                              Alternatif Konversi & Waste Recovery
+                            </h4>
+                          </div>
+                          <Leaf className="w-5 h-5 text-emerald-500" />
+                        </div>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                          {wasteRecommendation.naturalLanguageText}
+                        </p>
+                        {wasteRecommendation.jsonData.alternatives && (
+                          <div className="grid grid-cols-1 gap-2 pt-1">
+                            {(wasteRecommendation.jsonData.alternatives as any[]).map((alt: any, index: number) => (
+                              <div key={index} className="bg-muted/40 p-3 rounded-xl border border-border/50 text-xs flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center">
+                                  <strong className="text-foreground text-xs">{alt.name}</strong>
+                                  <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-600 px-2 py-0.5 rounded-full">
+                                    +{alt.recoveryPercentage}% Nilai
+                                  </span>
+                                </div>
+                                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                                  {alt.description}
+                                </p>
+                                <div className="text-[11px] font-bold text-foreground/80 mt-0.5">
+                                  Estimasi Nilai Terselamatkan: <span className="text-emerald-600 font-extrabold">Rp {alt.estimatedValue.toLocaleString("id-ID")}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </motion.div>
                     )}
                   </div>

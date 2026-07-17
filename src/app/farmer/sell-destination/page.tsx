@@ -41,41 +41,44 @@ function SellDestinationContent() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   useEffect(() => {
-    const currentUser = authApi.getCurrentUser();
-    if (currentUser) {
-      if (currentUser.role !== "farmer") {
-        router.push("/farmer/dashboard");
-        return;
-      }
-      setUser(currentUser);
+    const loadData = async () => {
+      const currentUser = authApi.getCurrentUser();
+      if (currentUser) {
+        if (currentUser.role !== "farmer") {
+          router.push("/farmer/dashboard");
+          return;
+        }
+        setUser(currentUser);
 
-      // Cari plan berdasarkan ID atau ambil plan terbaru jika kosong
-      if (harvestPlanId) {
-        const plansRes = harvestPlanApi.getHarvestPlans();
-        const activePlan = plansRes.data.find((p) => p.id === harvestPlanId);
-        if (activePlan) {
-          setPlan(activePlan);
-          const recsRes = harvestPlanApi.getRecommendationsByPlanId(activePlan.id, "SELL_DESTINATION");
-          if (recsRes.data.length > 0) {
-            setRecommendation(recsRes.data[0]);
+        // Cari plan berdasarkan ID atau ambil plan terbaru jika kosong
+        if (harvestPlanId) {
+          const plansRes = await harvestPlanApi.getHarvestPlans();
+          const activePlan = plansRes.data.find((p) => p.id === harvestPlanId);
+          if (activePlan) {
+            setPlan(activePlan);
+            const recsRes = await harvestPlanApi.getRecommendationsByPlanId(activePlan.id, "SELL_DESTINATION");
+            if (recsRes.data.length > 0) {
+              setRecommendation(recsRes.data[0]);
+            }
+          }
+        } else {
+          // Fallback: ambil plan terbaru milik user
+          const plansRes = await harvestPlanApi.getHarvestPlans();
+          if (plansRes.data.length > 0) {
+            const latestPlan = plansRes.data[0];
+            setPlan(latestPlan);
+            const recsRes = await harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "SELL_DESTINATION");
+            if (recsRes.data.length > 0) {
+              setRecommendation(recsRes.data[0]);
+            }
           }
         }
       } else {
-        // Fallback: ambil plan terbaru milik user
-        const plansRes = harvestPlanApi.getHarvestPlans();
-        if (plansRes.data.length > 0) {
-          const latestPlan = plansRes.data[0];
-          setPlan(latestPlan);
-          const recsRes = harvestPlanApi.getRecommendationsByPlanId(latestPlan.id, "SELL_DESTINATION");
-          if (recsRes.data.length > 0) {
-            setRecommendation(recsRes.data[0]);
-          }
-        }
+        router.push("/register");
       }
-    } else {
-      router.push("/register");
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    loadData();
   }, [router, harvestPlanId]);
 
   const handleAcceptMatch = async (buyerId: string, isRisk: boolean) => {
