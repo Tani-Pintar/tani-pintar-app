@@ -54,8 +54,15 @@ export default function DashboardPage() {
     if (!scrollRef.current) return;
     const { scrollLeft, clientWidth } = scrollRef.current;
     if (clientWidth === 0) return;
+    
+    // Karena kartu berukuran lebar penuh (w-full), pembagi adalah clientWidth
     const index = Math.round(scrollLeft / clientWidth);
-    setActiveDot(index);
+    
+    // Hanya update state jika indeks benar-benar bergeser/berubah
+    if (index !== activeDot && index >= 0 && index < lahanList.length) {
+      setActiveDot(index);
+      setActiveLahanIndex(index);
+    }
   };
 
   // State untuk Onboarding Wizard
@@ -514,14 +521,18 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Lahan Anda ({lahanList.length})</h3>
 
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x scrollbar-none">
+              <div
+                ref={scrollRef}
+                onScroll={handleScroll}
+                className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-none scroll-smooth"
+              >
                 {lahanList.map((lahan) => {
                   const km = KOMODITAS_LIST.find((k) => k.id === lahan.komoditas);
                   const ft = FASE_TANAM_LIST.find((f) => f.id === lahan.faseTanam);
                   return (
                     <div
                       key={lahan.id}
-                      className="w-[290px] flex-shrink-0 snap-center bg-card rounded-3xl p-5 border border-border/85 shadow-sm hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] hover:scale-[1.01] transition-all duration-300 flex flex-col gap-4 relative overflow-hidden"
+                      className="w-full flex-shrink-0 snap-center bg-card rounded-3xl p-5 border border-border/85 shadow-sm hover:shadow-[0_8px_25px_rgba(0,0,0,0.05)] hover:scale-[1.01] transition-all duration-300 flex flex-col gap-4 relative overflow-hidden"
                     >
                       {/* Badge Komoditas */}
                       <div className="flex justify-between items-start">
@@ -564,6 +575,53 @@ export default function DashboardPage() {
                   );
                 })}
               </div>
+
+              {/* Indikator Slide/Scroll Lahan (Selalu menampilkan tepat 2 indikator sesuai status scroll) */}
+              {lahanList.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3 mb-1">
+                  {/* Indikator Kiri: Aktif/Tebal jika belum berada di lahan terakhir */}
+                  <button
+                    onClick={() => {
+                      const targetIdx = 0;
+                      setActiveDot(targetIdx);
+                      setActiveLahanIndex(targetIdx);
+                      if (scrollRef.current && scrollRef.current.children[targetIdx]) {
+                        scrollRef.current.children[targetIdx].scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest",
+                          inline: "center",
+                        });
+                      }
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${
+                      activeDot < lahanList.length - 1 ? "w-4" : "w-1.5"
+                    }`}
+                    style={{ opacity: activeDot < lahanList.length - 1 ? 1 : 0.25 }}
+                    aria-label="Ke lahan pertama"
+                  />
+
+                  {/* Indikator Kanan: Aktif/Tebal jika sudah berada di lahan terakhir */}
+                  <button
+                    onClick={() => {
+                      const targetIdx = lahanList.length - 1;
+                      setActiveDot(targetIdx);
+                      setActiveLahanIndex(targetIdx);
+                      if (scrollRef.current && scrollRef.current.children[targetIdx]) {
+                        scrollRef.current.children[targetIdx].scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest",
+                          inline: "center",
+                        });
+                      }
+                    }}
+                    className={`h-1.5 rounded-full transition-all duration-300 focus:outline-none min-h-0 bg-primary ${
+                      activeDot === lahanList.length - 1 ? "w-4" : "w-1.5"
+                    }`}
+                    style={{ opacity: activeDot === lahanList.length - 1 ? 1 : 0.25 }}
+                    aria-label="Ke lahan terakhir"
+                  />
+                </div>
+              )}
             </div>
 
             {/* ================= INTEGRASI EXTRA: CUACA & HARGA LAHAN SECARA DINAMIS ================= */}
@@ -583,7 +641,17 @@ export default function DashboardPage() {
                           <button
                             key={lahan.id}
                             type="button"
-                            onClick={() => setActiveLahanIndex(idx)}
+                            onClick={() => {
+                              setActiveLahanIndex(idx);
+                              setActiveDot(idx);
+                              if (scrollRef.current && scrollRef.current.children[idx]) {
+                                scrollRef.current.children[idx].scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "nearest",
+                                  inline: "center",
+                                });
+                              }
+                            }}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border transition-all min-h-[38px] ${
                               activeLahanIndex === idx
                                 ? "border-primary bg-primary/5 text-primary"

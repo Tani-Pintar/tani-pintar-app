@@ -230,7 +230,7 @@ export default function LahanPage() {
 
               {/* Lahan List */}
               {lahanList.length === 0 ? (
-                <div className="bg-card rounded-3xl p-8 border border-border border-dashed text-center space-y-4 shadow-sm">
+                <div className="bg-card rounded-3xl w-full p-8 border border-border border-dashed text-center space-y-4 shadow-sm">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-muted text-muted-foreground">
                     <FileText className="w-6 h-6" />
                   </div>
