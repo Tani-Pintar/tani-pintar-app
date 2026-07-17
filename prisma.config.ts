@@ -10,7 +10,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   engine: "classic",
+  // Migrasi/push memerlukan koneksi langsung (session pooler port 5432).
+  // Pooler transaksi (6543) tidak kompatibel dengan prepared statement.
   datasource: {
-    url: env("DATABASE_URL"),
+    url: env("DIRECT_URL"),
   },
 });
